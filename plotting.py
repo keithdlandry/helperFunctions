@@ -7,27 +7,112 @@ from helperFunctions.sampling import down_sample, downsample_recal
 import random
 import numpy as np
 from cycler import cycler
+from scipy.stats import gaussian_kde
+from math import floor
+
+
+def determine_grid_pos(x, y, n):
+
+    # n starting at 0. So n=5 is actually the 6th
+    j = n%y
+    i = n//y
+    return i, j
+
+
+def determine_dimensions(n):
+
+    sqrt_n = np.sqrt(n)
+    floort_n = floor(sqrt_n)
+
+    if sqrt_n == floort_n:
+        x = y = floort_n
+    else:
+        x = floort_n
+        y = floort_n + 1
+
+    if x*y >= n:
+        return x, y
+    else:
+        return x+1, y
 
 
 def scatter_plot_classes(X, class_array, label_dict=None, title=None, alpha=.5,
-                         legend_loc='best', figsize=(8, 6), color_cyl=None, **kwargs):
+                         legend_loc='best', figsize=(8, 6), color_cycl=None,
+                         xlab=None, ylab=None, **kwargs):
 
+    """
+    :param X: 2D array (shape npoints, 2) of x-y values to be plotted.
+    :param class_array: Array containing the class value to which each x-y point belongs
+    :param label_dict: Dictionary of class value and legend label.
+    :param title: Tittle of plot
+    :param alpha:
+    :param legend_loc:
+    :param figsize:
+    :param color_cycl: A list of colors to be used for color selection of each class
+    :param kwargs:
+    :return: Returns matplotlib figure.
+    """
     unique_vals = class_array.unique()
     masks = [class_array == u for u in unique_vals]
 
     f, ax = plt.subplots(figsize=figsize)
-    if color_cyl is not None:
-        ax.set_prop_cycle(cycler('color', color_cyl))
+    if color_cycl is not None:
+        ax.set_prop_cycle(cycler('color', color_cycl))
 
     for m, u in zip(masks, unique_vals):
         ax.scatter(X[m, 0], X[m, 1], alpha=alpha,
                    label=label_dict[u], **kwargs)
     ax.legend(loc=legend_loc)
-    plt.show()
 
     if title is not None:
         ax.set_title(title)
+    if xlab is not None:
+        ax.set_xlabel(xlab)
+    if ylab is not None:
+        ax.set_ylabel(ylab)
 
+    plt.show()
+    return f
+
+
+def scatter_facet(X, class_array, label_dict=None, title=None, alpha=.5,
+                  legend_loc='best', figsize=(8, 6), xlab=None, ylab=None, **kwargs):
+
+    """
+    :param X: 2D array (shape npoints, 2) of x-y values to be plotted.
+    :param class_array: Array containing the class value to which each x-y point belongs
+    :param label_dict: Dictionary of class value and legend label.
+    :param title: Tittle of plot
+    :param alpha:
+    :param legend_loc:
+    :param figsize:
+    :param kwargs:
+    :return: Returns matplotlib figure.
+    """
+
+    unique_vals = class_array.unique()
+    masks = [class_array == u for u in unique_vals]
+
+    a, b = determine_dimensions(len(unique_vals))
+
+    f, ax = plt.subplots(a, b, figsize=figsize)
+
+    for m, u, k in zip(masks, unique_vals, range(len(unique_vals))):
+
+        i, j = determine_grid_pos(a, b, k)
+
+        ax[i][j].scatter(X[m, 0], X[m, 1], alpha=alpha,
+                         label=label_dict[u], ** kwargs)
+        ax[i][j].legend(loc=legend_loc)
+
+    for i in range(a):
+        ax[i][0].set_ylabel(ylab)
+    for i in range(b):
+        ax[b-1][i].set_xlabel(xlab)
+
+    if title is not None:
+        plt.suptitle(title)
+    plt.show()
     return f
 
 
@@ -168,6 +253,7 @@ def plot_learning_curve2(model, train_data, target, scoring, y_axis_label,
     ax.legend(loc='best')
     return f
 
+
 def log_reg_learning_curve(df, target_var,
                            downsamp_rate=None,
                            background_rate=None,
@@ -234,87 +320,120 @@ def log_reg_learning_curve(df, target_var,
 Try to use threading. Didn't seem to work
 """
 
+#
+# import threading
+# from multiprocessing.dummy import Pool
+# from functools import partial
+#
+#
+# def log_reg_learning_curve(df, target_var,
+#                            downsamp_rate=None,
+#                            background_rate=None,
+#                            random_samples=True,
+#                            samp_fracs=[0.01, 0.1, 0.25, 0.5, 0.75, 1],
+#                            n_iter=1):
+#
+#     train_data, test_data = train_test_split(df, test_size=0.2)
+#
+#     if downsamp_rate is not None:
+#         train_data = down_sample(train_data, ds_rate, target_var, inplace=False)
+#
+#     train_size = []
+#     performance = []
+#
+#     for samp_frac in samp_fracs:
+#
+#         train_size.append(samp_frac)
+#
+#         # parallelize n_iter calculations of
+#         # the log loss
+#         with Pool() as pool:
+#             res = pool.map(
+#                 partial(
+#                     func1,
+#                     train_data=train_data,
+#                     test_data=test_data,
+#                     target_var=target_var,
+#                     ds_rate=ds_rate,
+#                     background_rate=background_rate,
+#                     random_samples=random_samples
+#                 ),
+#                 [samp_frac]*n_iter
+#             )
+#         sample_perf = np.mean(res)
+#
+#         performance.append(sample_perf)
+#         print('\ntraining fraction =', samp_frac)
+#         if background_rate is not None:
+#             print('normalized log loss =', np.mean(sample_perf))
+#         else:
+#             print('log loss =', np.mean(sample_perf))
+#
+#     f, ax = plt.subplots(figsize=(8, 6))
+#     ax.scatter(train_size, performance)
+#     ax.set_xlabel('Training Fraction')
+#     ax.set_ylabel('Log Loss')
+#     if background_rate is not None:
+#         ax.axhline(y=1, linewidth=1, color='grey', linestyle=':', zorder=1)
+#     plt.show()
+#
+#
+# def func1(samp_frac, train_data, test_data, target_var, ds_rate, background_rate=None, random_samples=True):
+#
+#         n_train_ex = round(samp_frac*len(train_data))
+#
+#         if random_samples:
+#             sampled_ind = random.sample(set(train_data.index.values), n_train_ex)
+#             sampled_data = train_data.loc[sampled_ind]
+#         else:
+#             sampled_data = train_data[:n_train_ex]
+#
+#         Y_train = sampled_data[target_var]
+#         X_train = sampled_data.drop(target_var, axis=1)
+#         Y_test = test_data[target_var]
+#         X_test = test_data.drop(target_var, axis=1)
+#
+#         # cv log reg
+#         lrcv_mdl = LogisticRegressionCV(Cs=10, cv=2, random_state=12)
+#         lrcv_mdl.fit(X_train, Y_train)
+#         lrcv_pred = lrcv_mdl.predict_proba(X_test)[:, 1]
+#         lrcv_pred = downsample_recal(lrcv_pred, ds_rate)
+#         x_entr = log_loss(Y_test, lrcv_pred)
+#
+#         if background_rate is not None:
+#             bg_log_loss = log_loss(Y_test, [background_rate] * len(Y_test))
+#             return x_entr / bg_log_loss
+#
+#         return x_entr
 
-import threading
-from multiprocessing.dummy import Pool
-from functools import partial
 
-def log_reg_learning_curve(df, target_var,
-                           downsamp_rate=None,
-                           background_rate=None,
-                           random_samples=True,
-                           samp_fracs=[0.01, 0.1, 0.25, 0.5, 0.75, 1],
-                           n_iter=1):
-
-    train_data, test_data = train_test_split(df, test_size=0.2)
-
-    if downsamp_rate is not None:
-        train_data = down_sample(train_data, ds_rate, target_var, inplace=False)
-
-    train_size = []
-    performance = []
-
-    for samp_frac in samp_fracs:
-
-        train_size.append(samp_frac)
-
-        # parallelize n_iter calculations of
-        # the log loss
-        with Pool() as pool:
-            res = pool.map(
-                partial(
-                    func1,
-                    train_data=train_data,
-                    test_data=test_data,
-                    target_var=target_var,
-                    ds_rate=ds_rate,
-                    background_rate=background_rate,
-                    random_samples=random_samples
-                ),
-                [samp_frac]*n_iter
-            )
-        sample_perf = np.mean(res)
-
-        performance.append(sample_perf)
-        print('\ntraining fraction =', samp_frac)
-        if background_rate is not None:
-            print('normalized log loss =', np.mean(sample_perf))
-        else:
-            print('log loss =', np.mean(sample_perf))
-
-    f, ax = plt.subplots(figsize=(8, 6))
-    ax.scatter(train_size, performance)
-    ax.set_xlabel('Training Fraction')
-    ax.set_ylabel('Log Loss')
-    if background_rate is not None:
-        ax.axhline(y=1, linewidth=1, color='grey', linestyle=':', zorder=1)
+def add_jitter(x):
+    kde = gaussian_kde(x)
+    jitter = np.random.rand(len(x)) -.5
+    xvals = x + (density * jitter)
+    plt.scatter(xvals, y)
+    plt.scatter(x,y)
     plt.show()
 
 
-def func1(samp_frac, train_data, test_data, target_var, ds_rate, background_rate=None, random_samples=True):
+def add_jitter(x, jitter=.1):
 
-        n_train_ex = round(samp_frac*len(train_data))
+    delta = np.max(x) - np.min(x)
+    offset = np.random.rand(len(x)) - .5
+    x = x + jitter*offset*delta
+    return x
 
-        if random_samples:
-            sampled_ind = random.sample(set(train_data.index.values), n_train_ex)
-            sampled_data = train_data.loc[sampled_ind]
-        else:
-            sampled_data = train_data[:n_train_ex]
 
-        Y_train = sampled_data[target_var]
-        X_train = sampled_data.drop(target_var, axis=1)
-        Y_test = test_data[target_var]
-        X_test = test_data.drop(target_var, axis=1)
+def jitter_plot(x, y, jitter_x=.1, jitter_y=.1, **kwargs):
+    if jitter_x > 0:
+        x = add_jitter(x, jitter_x)
+    if jitter_y > 0:
+        y = add_jitter(y, jitter_y)
 
-        # cv log reg
-        lrcv_mdl = LogisticRegressionCV(Cs=10, cv=2, random_state=12)
-        lrcv_mdl.fit(X_train, Y_train)
-        lrcv_pred = lrcv_mdl.predict_proba(X_test)[:, 1]
-        lrcv_pred = downsample_recal(lrcv_pred, ds_rate)
-        x_entr = log_loss(Y_test, lrcv_pred)
+    return plt.scatter(x, y, **kwargs)
 
-        if background_rate is not None:
-            bg_log_loss = log_loss(Y_test, [background_rate] * len(Y_test))
-            return x_entr / bg_log_loss
 
-        return x_entr
+def plot_function(function, x_range, **kwargs):
+    x = np.array(x_range)
+    y = function(x)
+    plt.plot(x, y, **kwargs)

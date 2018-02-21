@@ -1,5 +1,6 @@
 import pandas as pd
 from helperFunctions.manipulating import append_to_column_name
+from helperFunctions.miscellaneous import make_list_if_not_list
 import numpy as np
 
 
@@ -173,6 +174,13 @@ def encode_from_old(df, column, old_vals, method='one_hot'):
 
 def encode_datetime(df, datetime_col_name, features=['hour', 'day'], suffix='',
                     make_categorical=False, drop_datetime=True, inplace=False):
+
+    features = make_list_if_not_list(features)
+
+    if not isinstance(df[datetime_col_name].iloc[0], (pd._libs.tslib.Timestamp)):
+        print('Converting to pandas._libs.tslib.Timestamp')
+        df[datetime_col_name] = pd.to_datetime(df[datetime_col_name])
+
     if not inplace:
         df = df.copy(deep=True)
 
@@ -210,7 +218,7 @@ def make_equiv_columns(df, col_names, fill=np.nan, inplace=False):
     extra_cols = current_cols.difference(all_cols)
     if len(extra_cols) > 0:
         print('Found {} extra columns.'.format(len(extra_cols)))
-        print('Adding columns:', extra_cols)
+        print('Removing columns:', extra_cols)
         print('to ensure same columns as data set used for model training.')
         df.drop(extra_cols, axis=1, inplace=True)
 

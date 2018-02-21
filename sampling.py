@@ -25,7 +25,7 @@ def k_fold_sampling(df, k, target=None, stratified=False):
 
     k = int(k)
 
-    if stratified and target == None:
+    if stratified and target is None:
         raise ValueError('Target variable is required for stratified sampling.')
 
     if stratified:

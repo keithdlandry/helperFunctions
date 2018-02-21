@@ -1,9 +1,13 @@
 from sklearn.metrics import log_loss
 from helperFunctions.sampling import downsample_recal
+import numpy as np
+
 
 def normalized_log_loss(y_true, y_pred, background_rate, **kwargs):
+    if isinstance(background_rate, (int, float)):
+        background_rate = [background_rate] * len(y_true)
     model_loss = log_loss(y_true, y_pred, **kwargs)
-    background_loss = log_loss(y_true, [background_rate]*len(y_true), **kwargs)
+    background_loss = log_loss(y_true, background_rate, **kwargs)
     return model_loss/background_loss
 
 
@@ -49,3 +53,6 @@ def normalized_log_loss_for_scorer(y_true, y_pred, **kwargs):
     model_loss = log_loss(y_true, y_pred)
     return model_loss/background_loss
 
+
+def mean_percent_error(y, y_pred, **kwargs):
+    return np.mean(np.abs(y-y_pred)/y)

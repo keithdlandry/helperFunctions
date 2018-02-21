@@ -1,0 +1,8 @@
+.idea/vcs.xml
+__pycache__/miscellaneous.cpython--36.pyc
+.DS_Store
+.idea/workspace.xml
+__pycache__/encoding.cpython-36.pyc
+__pycache__/joinHelpers.cpython-36.pyc
+__pycache__/manipulating.cpython-36.pyc
+__pycache__/runSqlQuery.cpython-36.pyc

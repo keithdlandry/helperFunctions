@@ -27,3 +27,16 @@ def group_agg_pivot_df(df, group_cols, agg_func='count', agg_col=None):
     pivot_df.columns.values[1:] = [
         s.replace(' ', '_').lower() for s in pivot_df.columns.values[1:]]
     return pivot_df
+
+def f2(df, index, columns):
+    df['one'] = 1
+    piv = pd.pivot_table(df, index=index, columns=columns,
+                   aggfunc=np.sum)
+    col_strs = [[str(c) for c in hier_col_name] for hier_col_name in piv.columns.values]
+    # join the hierarchical columns to a single string and remove leading/trailing whitespace
+    piv.columns = ['_'.join(c).strip() for c in col_strs]
+    piv.columns = [str(s).replace(' ', '_').lower() for s in piv.columns]
+    piv = piv.reset_index().fillna(0)
+    del df['one']
+    return piv
+

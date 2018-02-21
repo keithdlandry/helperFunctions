@@ -1,5 +1,106 @@
 import numpy as np
 import pandas as pd
+from helperFunctions.miscellaneous import make_list_if_not_list
+from helperFunctions.miscellaneous import strip_suffix
+
+
+def flatten_hier_column_names(df, delim='_'):
+
+    df = df.copy()
+
+    # make sure all columns are a string.
+    # not the case generally if grouping on a column containing a number
+    col_strs = [[str(c) for c in hier_col_name] for hier_col_name in df.columns.values]
+    df.columns = [strip_suffix(delim.join(c).strip(), delim) for c in col_strs]
+
+    return df
+
+
+def convert_to_datetime(df, columns):
+    df = df.copy(deep=True)
+    df[columns] = df[columns].apply(lambda col: pd.to_datetime(col, unit='ms'), axis=1)
+    return df
+
+
+def drop_cols_between(df, first_col, last_col):
+
+    df = df.copy()
+    rem_cols = df.loc[:, first_col:last_col].columns.tolist()
+    df.drop(rem_cols, inplace=True, axis=1)
+    return df
+
+
+def subset_by_indx(data, indices):
+    # Function to subset either a DataFrame or Array like by index.
+
+    try:
+        sub = data.iloc[indices]
+    except AttributeError:
+        sub = data[indices]
+    finally:
+        return sub
+
+
+def remove_training_cols(train=None, test=None, training_tag='_train'):
+    # This is a function that allows for training and testing to utilize different
+    # columns in the DataFrame. The DataFrame will start with a column marked with a
+    # training tag (e.g. _train) denoting this column should replace the column with
+    # the same name but without the tag for training and be removed for testing.
+    # This way the feature names will be the same for training and test sets.
+    # See example below:
+    # Y   | x1 | x2  | x2_train
+    # 1.5 | 2  | 4.2 | 5
+    # 2.8 | 3  | 5.1 | 5.7
+    # if it is the testing set will become:
+    # Y   | x1 | x2
+    # 1.5 | 2  | 4.2
+    # 2.8 | 3  | 5.1
+    # or if it is the training set:
+    # Y   | x1 | x2
+    # 1.5 | 2  | 5
+    # 2.8 | 3  | 5.7
+
+    # Remove columns with suffix in test set
+    if test is not None:
+        training_mean_cols = test.columns[test.columns.str.contains(training_tag)]
+        test.drop(training_mean_cols, axis=1, inplace=True)
+
+    # Columns are overwritten by the training values and the training columns are removed
+    if train is not None:
+        train = remove_suffix_from_col_names(train, training_tag, drop_cols=True)
+
+    return train, test
+
+
+def replace_string_in_col_name(df, original, new, drop_cols=False):
+
+    df = df.copy()
+    columns_with_str = df.columns[df.columns.str.contains(original)]
+    columns = [c.replace(original, new) for c in columns_with_str]
+
+    for col, col_str in zip(columns, columns_with_str):
+        df[col] = df[col_str]
+
+    if drop_cols:
+        df.drop(columns_with_str, axis=1, inplace=True)
+    return df
+
+
+def remove_suffix_from_col_names(df, suffix, drop_cols=False):
+    # TODO: in rare case where suffix is also contained in the column name (e.g. train_size_train)
+    # TODO: the replace will replace both occurances. Make this more robust.
+    # TODO: test this fix
+    columns_suffix = df.columns[df.columns.str.contains(suffix)]
+    # columns = [c.replace(suffix, '') for c in columns_suffix]
+    columns = [strip_suffix(c, suffix) for c in columns_suffix]
+
+
+    for col, col_suf in zip(columns, columns_suffix):
+        df[col] = df[col_suf]
+
+    if drop_cols:
+        df.drop(columns_suffix, axis=1, inplace=True)
+    return df
 
 
 def group_agg_pivot_df(df, group_cols, agg_func='count', agg_col=None, fillna=True):
@@ -39,6 +140,13 @@ def split_stack_df(df, id_cols, split_col, new_col_name):
     # id_cols are the columns we want to pair with the values
     # from the split column
 
+    # example   id | split_col
+    #           12 | a,b
+    #
+    #           id | new_col
+    #           12 | a
+    #           12 | b
+
     stacked = df.set_index(id_cols)[split_col].str.split(',', expand=True) \
         .stack().reset_index(level=id_cols)
     stacked.columns = id_cols + [new_col_name]
@@ -46,6 +154,8 @@ def split_stack_df(df, id_cols, split_col, new_col_name):
 
 
 def append_to_column_name(df, cols, string_to_append, before=True):
+
+    cols = make_list_if_not_list(cols)
 
     if all(isinstance(i, str) for i in cols):
         old_names = df.columns[df.columns.isin(cols)]
@@ -98,6 +208,8 @@ def assign_groups(df, col_to_bin, method, sig_delta=.5, sig_limits=[-5, 5], bins
     return df
 
 
+# testing to make agg pivot function faster
+# i forget if it worked
 def f2(df, index, columns):
     df['one'] = 1
     piv = pd.pivot_table(df, index=index, columns=columns,
