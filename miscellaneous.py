@@ -10,7 +10,7 @@ def make_list_if_not_list(input):
     return input
 
 
-def loop_dict(dic, index=0):
+def get_dict_combinations(dic, index=0):
     # Recursive function to generate dictionaries of all combinations of values.
     # Because of this, index should not be changed by hand!
     all_dicts = []
@@ -25,7 +25,7 @@ def loop_dict(dic, index=0):
             # move to next parameter (index + 1)
             # get all combinations of parameters [1:]
             # this is done by recursion
-            for d in loop_dict(dic, index=index + 1):
+            for d in get_dict_combinations(dic, index=index + 1):
                 ndic = dict(list(new_dict.items()) + list(d.items()))
                 all_dicts.append(ndic)
         else:

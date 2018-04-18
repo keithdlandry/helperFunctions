@@ -80,6 +80,16 @@ def write_to_s3(df, filename, bucket='geniussports-machine-learning-data'):
     s3c.put_file(df, bucket, filename)
 
 
+def write_json(data, file_name, **kwargs):
+
+    with open(file_name, 'w') as f:
+        f.write(json.dumps(data, **kwargs))
+    print_color('cyan', 'Writing Json Data To: {}'.format(file_name))
+
+
+
+
+
 
 
 

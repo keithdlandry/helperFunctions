@@ -2,6 +2,7 @@ import s3fs
 import pandas as pd
 import sys_utils.io_utils as io_utils
 import feather
+import json
 
 
 def load_from_s3(bucket, key, aws_profile, **kwargs):
@@ -28,6 +29,11 @@ def generic_load(file_name, file_type=None, json_gz=False):
     else:
         raise TypeError('Unrecognized file type')
     return data
+
+
+def load_raw_json(file_name):
+    return json.load(open(file_name))
+
 
 
 
