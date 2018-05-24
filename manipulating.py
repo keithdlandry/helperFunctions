@@ -2,6 +2,71 @@ import numpy as np
 import pandas as pd
 from helperFunctions.miscellaneous import make_list_if_not_list
 from helperFunctions.miscellaneous import strip_suffix
+from helperFunctions.writing import write_json
+from helperFunctions.joinHelpers import left_join
+
+
+def list_of_values_sharing_link(df, value_col, link_col, new_col_name='target_input_indxs'):
+
+    """
+    function to crate a new column with all input values which share same link value
+    example:
+    For a dataframe such as the one on the right val_col = A and link_col = B
+    the resulting dataframe would be the dataframe on the left
+     A | B       A | B | C
+    ---|---     ---|---|---
+     a | 2       a | 2 | [a, c]
+     a | 3       a | 3 | [a, b]
+     b | 3       b | 3 | [a, b]
+     b | 4       b | 4 | [b, c]
+     c | 2       c | 2 | [a, c]
+     c | 4       c | 4 | [b, c]
+
+    :param df: input dataframe
+    :param value_col: the column which we want to know share the same link
+    :param link_col: the feature with which to group the input feature by
+    :param new_col_name: name of new column created
+    :return: dataframe with new column containg list of values which share same link value
+    """
+    df = df.copy()
+    print('aaaaaaaa')
+    # create and join new column containing a list of all inputs which shared a link
+    link_vals = df.groupby(link_col).apply(lambda x: np.array([u for u in x[value_col]]))\
+        .reset_index().rename(columns={0: new_col_name})
+
+    df = left_join(df, link_vals, on=link_col)
+    return df
+    # print('bbbbbbbb')
+    # return link_vals
+
+def column_to_sequential_index(df, col_name, new_col_name=None, outfile=None, drop=False):
+
+    """
+    function to replace unique values in a dataframe column with integers from 0 to N_unique_vals
+    :param df: dataframe
+    :param col_name: column to replace values in
+    :param new_col_name: name of the new column, if None, use old column name
+    :param outfile: file to save a lookup table between old value and new integer
+    :param drop: boolean to drop the old column
+    :return: dataframe with the new integers
+    """
+
+    df = df.copy()
+    unique_vals = df[col_name].unique()
+    val_indx_lookup = {str(col_val): indx for indx, col_val in enumerate(unique_vals)}
+
+    if outfile is not None:
+        # save lookup dictionary for use later
+        write_json(val_indx_lookup, outfile)
+
+    if new_col_name is None:
+        # if not specified, replace original column
+        new_col_name = col_name
+
+    df[new_col_name] = [val_indx_lookup[str(v)] for v in df[col_name]]
+    if new_col_name is not None and drop:
+        df.drop(col_name, axis=1, inplace=True)
+    return df, val_indx_lookup
 
 
 def flatten_hier_column_names(df, delim='_'):

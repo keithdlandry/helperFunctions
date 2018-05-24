@@ -42,7 +42,7 @@ def scatter_plot_classes(X, class_array, label_dict=None, title=None, alpha=.5,
 
     """
     :param X: 2D array (shape npoints, 2) of x-y values to be plotted.
-    :param class_array: Array containing the class value to which each x-y point belongs
+    :param class_array: Array (must be pandas series) containing the class value to which each x-y point belongs
     :param label_dict: Dictionary of class value and legend label.
     :param title: Tittle of plot
     :param alpha:
@@ -53,6 +53,9 @@ def scatter_plot_classes(X, class_array, label_dict=None, title=None, alpha=.5,
     :return: Returns matplotlib figure.
     """
     unique_vals = class_array.unique()
+    # TODO: make the class array be more general than pandas series
+    # TODO: can also make is so labeling is ordered correctly 0, 1, 2, 3, ....
+    # unique_vals = set(class_array)
     masks = [class_array == u for u in unique_vals]
 
     f, ax = plt.subplots(figsize=figsize)
@@ -60,8 +63,10 @@ def scatter_plot_classes(X, class_array, label_dict=None, title=None, alpha=.5,
         ax.set_prop_cycle(cycler('color', color_cycl))
 
     for m, u in zip(masks, unique_vals):
-        ax.scatter(X[m, 0], X[m, 1], alpha=alpha,
-                   label=label_dict[u], **kwargs)
+        if label_dict is not None:
+            ax.scatter(X[m, 0], X[m, 1], alpha=alpha, label=label_dict[u], **kwargs)
+        else:
+            ax.scatter(X[m, 0], X[m, 1], alpha=alpha, **kwargs)
     ax.legend(loc=legend_loc)
 
     if title is not None:

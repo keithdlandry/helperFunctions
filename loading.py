@@ -19,6 +19,7 @@ def generic_load(file_name, file_type=None, json_gz=False):
 
     if file_type is None:
         file_type = file_name[file_name.rfind('.')+1:]
+        print('file type:', file_type)
 
     if file_type == 'csv':
         data = pd.read_csv(file_name)
