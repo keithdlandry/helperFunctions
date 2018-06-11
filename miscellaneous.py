@@ -38,3 +38,14 @@ def strip_suffix(s, suffix):
     if s.endswith(suffix):
         return s[:len(s) - len(suffix)]
     return s
+
+
+def append_to_list_elements(elements, phrase, before=False):
+
+    if before:
+        elements = [phrase + l for l in elements]
+    else:
+        elements = [l + phrase for l in elements]
+    return elements
+
+

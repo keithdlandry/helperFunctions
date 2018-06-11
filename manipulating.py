@@ -29,15 +29,13 @@ def list_of_values_sharing_link(df, value_col, link_col, new_col_name='target_in
     :return: dataframe with new column containg list of values which share same link value
     """
     df = df.copy()
-    print('aaaaaaaa')
     # create and join new column containing a list of all inputs which shared a link
     link_vals = df.groupby(link_col).apply(lambda x: np.array([u for u in x[value_col]]))\
         .reset_index().rename(columns={0: new_col_name})
 
     df = left_join(df, link_vals, on=link_col)
     return df
-    # print('bbbbbbbb')
-    # return link_vals
+
 
 def column_to_sequential_index(df, col_name, new_col_name=None, outfile=None, drop=False):
 
