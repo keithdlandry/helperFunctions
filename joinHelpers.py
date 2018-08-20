@@ -17,14 +17,16 @@ def check_types(df1, df2, cols1, cols2):
     return same
 
 
-def left_join(dataframe1, dataframe2, on=None, left_on=None, right_on=None, drop_right_on=False, **kwargs):
+def left_join(dataframe1, dataframe2, on=None, left_on=None, right_on=None, drop_right_on=False, verbosity=1, **kwargs):
     # join by common columns if nothing is specified
     if on == left_on == right_on is None:
-        print('No columns specified')
+        if verbosity == 1:
+            print('No columns specified')
         common_cols = list(set(dataframe1.columns).intersection(dataframe2.columns))
         if len(common_cols) == 0:
             raise ValueError('No common columns exist')
-        print('left joining on: ', common_cols)
+        if verbosity == 1:
+            print('left joining on: ', common_cols)
         on = common_cols
 
     # check if on was specified and create left_on/right_on
@@ -114,6 +116,8 @@ def outer_join(dataframe1, dataframe2, on=None, left_on=None, right_on=None):
 '''
 
 def semi_join(dataframe1, dataframe2, on=None, left_on=None, right_on=None):
+
+    # TODO: seems like a simple .isin() is faster? Test this out and change if neccessary.
     # join by common columns if nothing is specified
     if on == left_on == right_on is None:
         print('No columns specified')
