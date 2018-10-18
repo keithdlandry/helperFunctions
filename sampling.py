@@ -69,5 +69,5 @@ def k_fold_sampling(df, k, target=None, stratified=False):
         return samples
 
 
-testdf = pd.read_csv('/Users/keith.landry/data/testDf.csv')
-w = k_fold_sampling(testdf, 13)
+# testdf = pd.read_csv('/Users/keith.landry/data/testDf.csv')
+# w = k_fold_sampling(testdf, 13)
