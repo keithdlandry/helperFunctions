@@ -6,7 +6,7 @@ def weight_feature_by_freq(df, feature, add_wghts_to_df=False, add_counts_to_df=
 
     """
     function to calculate the sampling weighting for a feature such
-    that each unique values will be selected with the same probability
+    that each unique value will be selected with the same probability
 
     :param df: dataframe
     :param feature: feature with which to weight

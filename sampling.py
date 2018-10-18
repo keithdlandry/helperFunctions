@@ -54,11 +54,13 @@ def k_fold_sampling(df, k, target=None, stratified=False):
 
         left_over = N - base_n*(k)
         # add or subtract from each fold to achieve full coverage
+        # make a list for the number of entries for each fold
         if left_over >= 0:
             n_fold = [base_n]*(k-left_over) + [base_n + 1]*left_over
         else:
             n_fold = [base_n]*(k+left_over) + [base_n - 1]*abs(left_over)
 
+        # find the indicies associated with having n entries in each fold
         indices = list(np.cumsum(n_fold))
         low_indx = [0] + indices[:-1]
         high_indx = indices
@@ -67,6 +69,5 @@ def k_fold_sampling(df, k, target=None, stratified=False):
         return samples
 
 
-
-# testdf = pd.read_csv('/Users/keith.landry/data/testDf.csv')
-# w = k_fold_sampling(testdf, 13)
+testdf = pd.read_csv('/Users/keith.landry/data/testDf.csv')
+w = k_fold_sampling(testdf, 13)

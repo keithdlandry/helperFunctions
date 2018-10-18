@@ -1,5 +1,7 @@
 # functions to help with plotting commonly used plots
 import matplotlib.pyplot as plt
+from matplotlib import gridspec
+
 from sklearn.linear_model import LogisticRegressionCV
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import log_loss
@@ -121,8 +123,14 @@ def scatter_facet(X, class_array, label_dict=None, title=None, alpha=.5,
     return f
 
 
-def calibration_plot(g, xvar, yvar, n_pos, xmin=None, xmax=None,
-                     ymin=None, ymax=None, title=None, background_rate=None):
+def calibration_plot(g, xvar, yvar, n_pos, n_tot=None, xmin=None, xmax=None,
+                     ymin=None, ymax=None, title=None, background_rate=None,
+                     ybuffer=.001, linecolor='mistyrose', pointcolor='black',
+                     pos_color='dodgerblue', tot_color='black',
+                     y_axis_lab='true positive fraction',
+                     y_axis_lab2='total number in bin',
+                     x_axis_lab='model predicted probability'
+                     ):
     '''
     :param g: dataframe with columns
     :param xvar: column name of g containing the x variable to be plotted
@@ -152,24 +160,29 @@ def calibration_plot(g, xvar, yvar, n_pos, xmin=None, xmax=None,
             xmax = g[xvar].max() + (g[xvar].max() - xmin)/25
         print('xmax =', xmax)
     if ymin is None:
-        ymin = g[yvar].min() - .001
+        ymin = g[yvar].min() - ybuffer
     if ymax is None:
-        ymax = g[yvar].max() + .001
+        ymax = g[yvar].max() + ybuffer
 
     f, ax = plt.subplots(2, 1, figsize=(8, 6))
     f.subplots_adjust(hspace=0)
-    ax[0].axhline(y=background_rate, linewidth=1, color='grey', linestyle=':', zorder=1)
-    ax[0].scatter(g[xvar], g[yvar], zorder=3)
+    ax[0] = plt.subplot2grid((3, 1), (0,0), rowspan=2)
+    bg_line = ax[0].axhline(y=background_rate, linewidth=1, color='gainsboro', linestyle=':',
+                               zorder=1, label='percent of positive examples')
+    ax[0].scatter(g[xvar], g[yvar], zorder=3, color=pointcolor)
 
     n = g[n_pos]/g[yvar]
     yerr = np.sqrt(g[yvar]*(1-g[yvar])/n)
-    ax[0].errorbar(g[xvar], g[yvar], yerr=yerr, fmt='o')
+    ax[0].errorbar(g[xvar], g[yvar], yerr=yerr, fmt='o', color=pointcolor)
     # plot y=x line
-    ax[0].plot(
-        ax[0].get_xlim(), ax[0].get_xlim(), linewidth=1, linestyle='--', color='black', zorder=2)
+    yx_line, = plot_function(lambda x: x, ax[0].get_xlim(), linewidth=1, linestyle='--',
+                               color=linecolor, zorder=2, label='y=x')
+    plt.legend(handles=[bg_line, yx_line])
+    # ax[0].plot(
+    #     ax[0].get_xlim(), ax[0].get_xlim(), linewidth=1, linestyle='--', color=linecolor, zorder=2)
     ax[0].get_xaxis().set_visible(False)
     # ax[0].set_xlabel('model click probability')
-    ax[0].set_ylabel('True CTR in bin')
+    ax[0].set_ylabel(y_axis_lab)
     if xmin is not None or xmax is not None:
         ax[0].set_xlim(xmin, xmax)
     if ymin is not None or ymax is not None:
@@ -179,9 +192,13 @@ def calibration_plot(g, xvar, yvar, n_pos, xmin=None, xmax=None,
 
     # need to remove any rows in g with <= zero positive examples because log won't work
     g = g[g[n_pos] > 0]
-    ax[1].scatter(g[xvar], g[n_pos], color='black')
-    ax[1].set_xlabel('model click probability')
-    ax[1].set_ylabel('number of clicks in bin')
+    ax[1] = plt.subplot2grid((3, 1), (2, 0), rowspan=1)
+    if n_tot is not None:
+        ax[1].scatter(g[xvar], g[n_tot], facecolors='None', edgecolors='black', label='total')
+    ax[1].scatter(g[xvar], g[n_pos], facecolors='None', edgecolors='dodgerblue', label='positive')
+    ax[1].set_xlabel(x_axis_lab)
+    ax[1].set_ylabel(y_axis_lab2)
+    plt.legend()
     #ax[1].set_ylim(g[n_pos].min(), g[n_pos].max() + 100)
     #ax[1].set_ylim(10**-1, 10**3.5)
     ax[1].set_yscale('log')
@@ -441,4 +458,4 @@ def jitter_plot(x, y, jitter_x=.1, jitter_y=.1, **kwargs):
 def plot_function(function, x_range, **kwargs):
     x = np.array(x_range)
     y = function(x)
-    plt.plot(x, y, **kwargs)
+    return plt.plot(x, y, **kwargs)

@@ -1,5 +1,5 @@
 import pandas as pd
-from helperFunctions.joinHelpers import left_join
+from helperFunctions.joinHelpers import left_join, outer_join
 
 def pad_dates_by_group(df, group_col, date_col, fill_method='ffill', use_full_date_range=True):
 
@@ -33,3 +33,14 @@ def pad_dates_by_group(df, group_col, date_col, fill_method='ffill', use_full_da
         .apply(lambda x: x.fillna(method=fill_method))
 
     return padded_df
+
+
+def pad(df, date_col, offset_string):
+    
+    all_dates = df.set_index(date_col).resample(offset_string).count().reset_index()[[date_col]]
+    return outer_join(df, all_dates).sort_values(date_col)
+
+    
+    
+
+    

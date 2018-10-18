@@ -3,10 +3,17 @@ import pandas as pd
 from helperFunctions.miscellaneous import make_list_if_not_list
 from helperFunctions.miscellaneous import strip_suffix
 from helperFunctions.writing import write_json
-from helperFunctions.joinHelpers import left_join
+from helperFunctions.joinHelpers import left_join, semi_join
 
 
-def list_of_values_sharing_link(df, value_col, link_col, new_col_name='target_input_indxs'):
+def _remove_val_from_pool(row, val_col, link_col, new_col_name):
+
+    id_to_del = np.argwhere(row[new_col_name] == row[val_col]).ravel()
+    return np.delete(row[new_col_name], id_to_del)
+
+
+def list_of_values_sharing_link(df, value_col, link_col, remove_val=False,
+                                new_col_name='target_input_indxs'):
 
     """
     function to crate a new column with all input values which share same link value
@@ -34,8 +41,40 @@ def list_of_values_sharing_link(df, value_col, link_col, new_col_name='target_in
         .reset_index().rename(columns={0: new_col_name})
 
     df = left_join(df, link_vals, on=link_col)
+
+    if remove_val:
+        for row in df.iterrows():
+            x = _remove_val_from_pool(row[1], value_col, link_col, new_col_name)
+            df.set_value(row[0], new_col_name, x)
+
     return df
 
+
+def subset_good_links(df, input_feat, link_feat):
+
+    # want more than a single input in the link's target pool
+    targ_pool_counts = df.groupby(link_feat)[input_feat].count().sort_values().reset_index()
+    targ_pool_counts.columns = [link_feat, 'n_input']
+
+    good_links = targ_pool_counts.loc[targ_pool_counts.n_input > 1, link_feat].reset_index()
+    return semi_join(df, good_links[[link_feat]])
+
+
+def remove_single_inputs(df, input_feat, verbose=False):
+
+    df = df.copy()
+    good_inputs = df[input_feat].value_counts()[df[input_feat].value_counts() > 1].index
+
+    if verbose:
+        print(df[input_feat].value_counts())
+        print(df[input_feat].value_counts()[df[input_feat].value_counts() > 1])
+
+    df = df[df[input_feat].isin(good_inputs)]
+
+    if verbose:
+        print(df.shape)
+
+    return df
 
 def column_to_sequential_index(df, col_name, new_col_name=None, outfile=None, drop=False):
 
@@ -69,12 +108,13 @@ def column_to_sequential_index(df, col_name, new_col_name=None, outfile=None, dr
 
 def flatten_hier_column_names(df, delim='_'):
 
-    df = df.copy()
+    if isinstance(df.columns, pd.core.indexes.multi.MultiIndex):
+        df = df.copy()
 
-    # make sure all columns are a string.
-    # not the case generally if grouping on a column containing a number
-    col_strs = [[str(c) for c in hier_col_name] for hier_col_name in df.columns.values]
-    df.columns = [strip_suffix(delim.join(c).strip(), delim) for c in col_strs]
+        # make sure all columns are a string.
+        # not the case generally if grouping on a column containing a number
+        col_strs = [[str(c) for c in hier_col_name] for hier_col_name in df.columns.values]
+        df.columns = [strip_suffix(delim.join(c).strip(), delim) for c in col_strs]
 
     return df
 
@@ -152,7 +192,7 @@ def replace_string_in_col_name(df, original, new, drop_cols=False):
 def remove_suffix_from_col_names(df, suffix, drop_cols=False):
     # TODO: in rare case where suffix is also contained in the column name (e.g. train_size_train)
     # TODO: the replace will replace both occurances. Make this more robust.
-    # TODO: test this fix
+    # TODO: think it's fixed but needs testing
     columns_suffix = df.columns[df.columns.str.contains(suffix)]
     # columns = [c.replace(suffix, '') for c in columns_suffix]
     columns = [strip_suffix(c, suffix) for c in columns_suffix]
@@ -249,11 +289,11 @@ def assign_groups(df, col_to_bin, method, sig_delta=.5, sig_limits=[-5, 5], bins
             if centered:
                 df.loc[
                     (df[col_to_bin] > mu + x * sig - sig_delta * sig / 2) &
-                    (df[col_to_bin] < mu + x * sig + sig_delta * sig / 2), 'group'] = i
+                    (df[col_to_bin] <= mu + x * sig + sig_delta * sig / 2), 'group'] = i
             else:
                 df.loc[
                     (df[col_to_bin] > mu + x * sig) &
-                    (df[col_to_bin] < mu + x * sig + sig_delta * sig), 'group'] = i
+                    (df[col_to_bin] <= mu + x * sig + sig_delta * sig), 'group'] = i
 
     elif method == 'fixed_width' or method == 'user_defined':
         if isinstance(bins, int):
@@ -271,6 +311,36 @@ def assign_groups(df, col_to_bin, method, sig_delta=.5, sig_limits=[-5, 5], bins
     return df
 
 
+def unmelt(df, values, columns, index=None, reset_index=True, remove_multiindex=True):
+
+    """
+    This function unmelts a dataframe
+
+    :param df:
+    :param values:
+    :param columns:
+    :param index:
+    :param reset_index:
+    :return:
+    """
+
+    # if no index is provided use all other columns in DataFrame
+    if index is None:
+        index = set(df.columns)
+        _cols = make_list_if_not_list(columns)
+        _vals = make_list_if_not_list(values)
+        index = index - set(_cols + _vals)
+    # pivot table to unmelt the dataframe using first item found for each group
+    dfpiv = df.pivot_table(values=values, columns=columns, index=index, aggfunc='first')
+    if reset_index:
+        dfpiv.reset_index(inplace=True)
+    if remove_multiindex:
+        dfpiv = flatten_hier_column_names(dfpiv)
+    # remove column index name in case one was created
+    dfpiv.columns.name = ''
+    return dfpiv
+
+
 # testing to make agg pivot function faster
 # i forget if it worked
 def f2(df, index, columns):
@@ -284,6 +354,7 @@ def f2(df, index, columns):
     piv = piv.reset_index().fillna(0)
     del df['one']
     return piv
+
 
 
 
