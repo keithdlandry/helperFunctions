@@ -39,7 +39,8 @@ def append_to_column_name(df, cols, string_to_append, before=True):
 
 def flatten_hier_column_names(df, delim='_'):
 
-    if isinstance(df.columns, pd.core.indexes.multi.MultiIndex):
+    # if isinstance(df.columns, pd.core.indexes.multi.MultiIndex):
+    if isinstance(df.columns, pd.indexes.multi.MultiIndex):
         df = df.copy()
 
         # make sure all columns are a string.
